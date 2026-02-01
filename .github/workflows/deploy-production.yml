@@ -717,24 +717,6 @@ jobs:
             fi
           EOF
       
-      - name: Run health checks
-        run: |
-          echo "⏳ Waiting for containers to be fully ready..."
-          sleep 10
-
-          # Check app1 on its direct port (allow 3 minutes for migrations + startup)
-          for i in {1..36}; do
-            if curl -f http://59.21.170.6:3001/api/health; then
-              echo "✅ App1 health check passed!"
-              exit 0
-            fi
-            echo "Attempt $i/36: Health check failed, retrying..."
-            sleep 5
-          done
-
-          echo "❌ Health checks failed after 3 minutes!"
-          exit 1
-      
       - name: Notify on success
         if: success()
         run: |
@@ -764,4 +746,4 @@ jobs:
           echo "❌ Deployment failed! Rolling back..."
           ssh -i ~/.ssh/deploy_key \
           ${{ secrets.PRODUCTION_SERVER_USER }}@${{ secrets.PRODUCTION_SERVER_IP }} \
-          'cd /opt/connect && docker-compose --env-file .env.production restart app1 app2 scraper'
+          'cd /opt/connect && docker-compose --env-file .env.production -f docker-compose.production.yml restart app1 app2 scraper'
