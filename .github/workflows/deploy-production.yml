@@ -9,10 +9,14 @@ on:
         description: 'Skip tests (emergency deploy)'
         required: false
         default: 'false'
+      force_scraper_rebuild:
+        description: 'Force scraper rebuild (workflow_dispatch only)'
+        required: false
+        default: 'false'
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -124,12 +128,59 @@ jobs:
   build:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: test
-    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    outputs:
+      scraper_changed: ${{ steps.scraper-check.outputs.scraper_changed }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect scraper changes
+        id: scraper-check
+        run: |
+          set -e
+          RANGE=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.force_scraper_rebuild }}" = "true" ]; then
+              echo "Manual dispatch: force_scraper_rebuild=true"
+              echo "scraper_changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+              RANGE="HEAD~1..HEAD"
+            else
+              echo "Manual dispatch: no HEAD~1 available, defaulting scraper_changed=true"
+              echo "scraper_changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            if [ -z "${{ github.event.before }}" ] || [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+              echo "Missing github.event.before: defaulting scraper_changed=true"
+              echo "scraper_changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+
+          CHANGED=$(git diff --name-only $RANGE -- \
+            Dockerfile.scraper \
+            docker-entrypoint-scraper.sh \
+            lib/scraping/ \
+            lib/ \
+            scripts/ \
+            prisma/schema.prisma \
+            package.json \
+            package-lock.json \
+            tsconfig.json)
+
+          if [ -n "$CHANGED" ]; then
+            echo "scraper_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "scraper_changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Free disk space on runner
         run: |
@@ -173,6 +224,7 @@ jobs:
 
       - name: Build scraper image
         uses: docker/build-push-action@v5
+        if: steps.scraper-check.outputs.scraper_changed == 'true'
         with:
           context: .
           file: ./Dockerfile.scraper
@@ -182,7 +234,8 @@ jobs:
           cache-to: type=gha,mode=max
           outputs: type=docker,dest=/tmp/connect-scraper-image.tar
 
-      - name: Verify scripts directory in images
+      - name: Verify scripts directory in scraper image
+        if: steps.scraper-check.outputs.scraper_changed == 'true'
         run: |
           echo "🔍 Verifying Docker images contain required files..."
 
@@ -218,6 +271,10 @@ jobs:
           docker image inspect connect-scraper:${{ github.sha }} \
             --format 'WorkingDir={{.Config.WorkingDir}} Entrypoint={{json .Config.Entrypoint}}'
 
+      - name: Verify scripts directory in app image
+        run: |
+          echo "🔍 Verifying Docker image contains required files..."
+
           # ========== App Image ==========
           docker load --input /tmp/connect-image.tar
 
@@ -248,7 +305,7 @@ jobs:
             --format 'WorkingDir={{.Config.WorkingDir}} Entrypoint={{json .Config.Entrypoint}}'
 
           echo ""
-          echo "✅ All images verified successfully"
+          echo "✅ App image verified successfully"
           echo "   - Build requirements: /app/scripts/ present"
           echo "   - Runtime requirements: entrypoints and execution targets present"
           echo "   - Image metadata: validated"
@@ -262,6 +319,7 @@ jobs:
 
       - name: Upload scraper image artifact
         uses: actions/upload-artifact@v4
+        if: steps.scraper-check.outputs.scraper_changed == 'true'
         with:
           name: docker-scraper-image
           path: /tmp/connect-scraper-image.tar
@@ -270,7 +328,8 @@ jobs:
   deploy:
     name: Deploy to Production Server
     runs-on: ubuntu-latest
-    needs: build
+    needs: [test, build]
+    if: always() && needs.build.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped')
     environment:
       name: production
       url: https://connectplt.kr
@@ -287,6 +346,7 @@ jobs:
 
       - name: Download scraper image artifact
         uses: actions/download-artifact@v4
+        if: needs.build.outputs.scraper_changed == 'true'
         with:
           name: docker-scraper-image
           path: /tmp
@@ -294,6 +354,10 @@ jobs:
       - name: Load Docker images
         run: |
           docker load --input /tmp/connect-image.tar
+
+      - name: Load scraper Docker image
+        if: needs.build.outputs.scraper_changed == 'true'
+        run: |
           docker load --input /tmp/connect-scraper-image.tar
       
       - name: Setup SSH key
@@ -566,6 +630,9 @@ jobs:
           ${{ secrets.PRODUCTION_SERVER_USER }}@${{ secrets.PRODUCTION_SERVER_IP }} \
           'gunzip | docker load'
 
+      - name: Copy scraper image to production
+        if: needs.build.outputs.scraper_changed == 'true'
+        run: |
           echo "Transferring scraper image..."
           docker save connect-scraper:${{ github.sha }} | gzip | \
           ssh -i ~/.ssh/deploy_key \
@@ -580,7 +647,6 @@ jobs:
 
             # Tag new images
             docker tag connect:${{ github.sha }} connect:latest
-            docker tag connect-scraper:${{ github.sha }} connect-scraper:latest
 
             # Deploy using docker-compose (migrations run automatically inside containers)
             export COMPOSE_FILE=docker-compose.production.yml
@@ -614,6 +680,18 @@ jobs:
               echo "✅ Both app instances healthy!"
             fi
 
+            echo "🎉 Deployment complete! (App1, App2)"
+          EOF
+
+      - name: Deploy scraper to production
+        if: needs.build.outputs.scraper_changed == 'true'
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+          ${{ secrets.PRODUCTION_SERVER_USER }}@${{ secrets.PRODUCTION_SERVER_IP }} << 'EOF'
+            cd /opt/connect
+
+            docker tag connect-scraper:${{ github.sha }} connect-scraper:latest
+
             # Deploy scraper (with fresh code and health checks)
             echo "🔄 Deploying scraper..."
             docker-compose --env-file .env.production up -d scraper
@@ -637,8 +715,6 @@ jobs:
               docker logs connect_scraper --tail 50
               exit 1
             fi
-
-            echo "🎉 Deployment complete! (App1, App2, Scraper)"
           EOF
       
       - name: Run health checks
@@ -689,4 +765,3 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
           ${{ secrets.PRODUCTION_SERVER_USER }}@${{ secrets.PRODUCTION_SERVER_IP }} \
           'cd /opt/connect && docker-compose --env-file .env.production restart app1 app2 scraper'
-
