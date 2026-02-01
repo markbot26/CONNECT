@@ -102,6 +102,9 @@ services:
       # Monitoring
       SENTRY_DSN: ${SENTRY_DSN}
 
+      # Feature Flags
+      MATCHING_ALGORITHM: ${MATCHING_ALGORITHM:-v4.3}
+
       # Node.js optimization
       NODE_OPTIONS: "--max-old-space-size=8192"
       UV_THREADPOOL_SIZE: 16
@@ -208,6 +211,10 @@ services:
       SME24_MAINBIZ_API_KEY: ${SME24_MAINBIZ_API_KEY}
 
       SENTRY_DSN: ${SENTRY_DSN}
+
+      # Feature Flags
+      MATCHING_ALGORITHM: ${MATCHING_ALGORITHM:-v4.3}
+
       NODE_OPTIONS: "--max-old-space-size=8192"
       UV_THREADPOOL_SIZE: 16
     ports:
