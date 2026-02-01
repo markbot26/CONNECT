@@ -145,25 +145,25 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ github.event.inputs.force_scraper_rebuild }}" = "true" ]; then
               echo "Manual dispatch: force_scraper_rebuild=true"
-              echo "scraper_changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-
-            if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
-              RANGE="HEAD~1..HEAD"
-            else
-              echo "Manual dispatch: no HEAD~1 available, defaulting scraper_changed=true"
-              echo "scraper_changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          else
-            if [ -z "${{ github.event.before }}" ] || [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-              echo "Missing github.event.before: defaulting scraper_changed=true"
-              echo "scraper_changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            RANGE="${{ github.event.before }}..${{ github.sha }}"
+            echo "scraper_changed=changed" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            RANGE="HEAD~1..HEAD"
+          else
+            echo "Manual dispatch: no HEAD~1 available, defaulting scraper_changed=true"
+            echo "scraper_changed=changed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        else
+          if [ -z "${{ github.event.before }}" ] || [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "Missing github.event.before: defaulting scraper_changed=true"
+            echo "scraper_changed=changed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RANGE="${{ github.event.before }}..${{ github.sha }}"
+        fi
 
           CHANGED=$(git diff --name-only $RANGE -- \
             Dockerfile.scraper \
@@ -177,9 +177,9 @@ jobs:
             tsconfig.json)
 
           if [ -n "$CHANGED" ]; then
-            echo "scraper_changed=true" >> "$GITHUB_OUTPUT"
+            echo "scraper_changed=changed" >> "$GITHUB_OUTPUT"
           else
-            echo "scraper_changed=false" >> "$GITHUB_OUTPUT"
+            echo "scraper_changed=unchanged" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Free disk space on runner
@@ -224,7 +224,7 @@ jobs:
 
       - name: Build scraper image
         uses: docker/build-push-action@v5
-        if: steps.scraper-check.outputs.scraper_changed == 'true'
+        if: steps.scraper-check.outputs.scraper_changed == 'changed'
         with:
           context: .
           file: ./Dockerfile.scraper
@@ -235,7 +235,7 @@ jobs:
           outputs: type=docker,dest=/tmp/connect-scraper-image.tar
 
       - name: Verify scripts directory in scraper image
-        if: steps.scraper-check.outputs.scraper_changed == 'true'
+        if: steps.scraper-check.outputs.scraper_changed == 'changed'
         run: |
           echo "🔍 Verifying Docker images contain required files..."
 
@@ -319,7 +319,7 @@ jobs:
 
       - name: Upload scraper image artifact
         uses: actions/upload-artifact@v4
-        if: steps.scraper-check.outputs.scraper_changed == 'true'
+        if: steps.scraper-check.outputs.scraper_changed == 'changed'
         with:
           name: docker-scraper-image
           path: /tmp/connect-scraper-image.tar
@@ -346,7 +346,7 @@ jobs:
 
       - name: Download scraper image artifact
         uses: actions/download-artifact@v4
-        if: needs.build.outputs.scraper_changed == 'true'
+        if: needs.build.outputs.scraper_changed == 'changed'
         with:
           name: docker-scraper-image
           path: /tmp
@@ -356,7 +356,7 @@ jobs:
           docker load --input /tmp/connect-image.tar
 
       - name: Load scraper Docker image
-        if: needs.build.outputs.scraper_changed == 'true'
+        if: needs.build.outputs.scraper_changed == 'changed'
         run: |
           docker load --input /tmp/connect-scraper-image.tar
       
@@ -631,7 +631,7 @@ jobs:
           'gunzip | docker load'
 
       - name: Copy scraper image to production
-        if: needs.build.outputs.scraper_changed == 'true'
+        if: needs.build.outputs.scraper_changed == 'changed'
         run: |
           echo "Transferring scraper image..."
           docker save connect-scraper:${{ github.sha }} | gzip | \
@@ -684,7 +684,7 @@ jobs:
           EOF
 
       - name: Deploy scraper to production
-        if: needs.build.outputs.scraper_changed == 'true'
+        if: needs.build.outputs.scraper_changed == 'changed'
         run: |
           ssh -i ~/.ssh/deploy_key \
           ${{ secrets.PRODUCTION_SERVER_USER }}@${{ secrets.PRODUCTION_SERVER_IP }} << 'EOF'
