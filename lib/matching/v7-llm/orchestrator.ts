@@ -1,14 +1,14 @@
 import type { funding_programs, organizations } from '@prisma/client';
 import { db } from '@/lib/db';
 import { matchProgramToOrganization } from './llm-matcher';
-import type { V2MatchingOptions } from './types';
+import type { V7MatchingOptions } from './types';
 
 const DEFAULT_CONCURRENCY = 5;
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_RETRIES = 1;
 const LLM_MODEL = 'claude-3-5-haiku-20241022';
 
-function normalizeOptions(options: V2MatchingOptions = {}): Required<V2MatchingOptions> {
+function normalizeOptions(options: V7MatchingOptions = {}): Required<V7MatchingOptions> {
   return {
     concurrency: options.concurrency ?? DEFAULT_CONCURRENCY,
     timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
@@ -38,7 +38,7 @@ async function pLimit<T>(
   return results;
 }
 
-async function upsertV2Match(
+async function upsertV7Match(
   organizationId: string,
   programId: string,
   matchResult: {
@@ -60,6 +60,7 @@ async function upsertV2Match(
       },
     },
     update: {
+      score: matchResult.score,
       llmScore: matchResult.score,
       llmDecision: matchResult.decision,
       llmConfidence: matchResult.confidence,
@@ -72,7 +73,7 @@ async function upsertV2Match(
     create: {
       organizationId,
       programId,
-      score: 0,
+      score: matchResult.score,
       explanation: {},
       llmScore: matchResult.score,
       llmDecision: matchResult.decision,
@@ -86,9 +87,9 @@ async function upsertV2Match(
   });
 }
 
-export async function runV2MatchingForProgram(
+export async function runV7MatchingForProgram(
   programId: string,
-  options: V2MatchingOptions = {}
+  options: V7MatchingOptions = {}
 ): Promise<void> {
   const config = normalizeOptions(options);
 
@@ -111,7 +112,7 @@ export async function runV2MatchingForProgram(
       .map((org) => async () => {
         try {
           const matchResult = await matchProgramToOrganization(program, org, config);
-          await upsertV2Match(org.id, program.id, matchResult);
+          await upsertV7Match(org.id, program.id, matchResult);
         } catch (error) {
           console.error('[V7-LLM MATCHING] 프로그램 매칭 실패:', {
             programId: program.id,
@@ -138,9 +139,9 @@ export async function runV2MatchingForProgram(
   }
 }
 
-export async function runV2MatchingForOrganization(
+export async function runV7MatchingForOrganization(
   organizationId: string,
-  options: V2MatchingOptions = {}
+  options: V7MatchingOptions = {}
 ): Promise<void> {
   const config = normalizeOptions(options);
 
@@ -169,7 +170,7 @@ export async function runV2MatchingForOrganization(
       .map((program) => async () => {
         try {
           const matchResult = await matchProgramToOrganization(program, organization, config);
-          await upsertV2Match(organization.id, program.id, matchResult);
+          await upsertV7Match(organization.id, program.id, matchResult);
         } catch (error) {
           console.error('[V7-LLM MATCHING] 기관 매칭 실패:', {
             programId: program.id,

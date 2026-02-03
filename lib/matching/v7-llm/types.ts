@@ -15,7 +15,7 @@ export interface LLMMatchResult {
   };
 }
 
-export interface V2MatchingOptions {
+export interface V7MatchingOptions {
   concurrency?: number;      // 기본 5
   timeoutMs?: number;        // 기본 30000
   retries?: number;          // 기본 1

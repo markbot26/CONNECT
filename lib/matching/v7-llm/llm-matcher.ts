@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { funding_programs, organizations } from '@prisma/client';
-import type { LLMMatchResult, V2MatchingOptions } from './types';
+import type { LLMMatchResult, V7MatchingOptions } from './types';
 
 const LLM_MODEL = 'claude-3-5-haiku-20241022';
 
@@ -131,7 +131,7 @@ function parseLLMResult(rawText: string): LLMMatchResult {
 export async function matchProgramToOrganization(
   program: funding_programs,
   organization: organizations,
-  options: V2MatchingOptions = {}
+  options: V7MatchingOptions = {}
 ): Promise<LLMMatchResult> {
   const client = new Anthropic();
   const timeoutMs = options.timeoutMs ?? 30000;

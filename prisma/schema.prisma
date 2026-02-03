@@ -271,7 +271,7 @@ model funding_matches {
   match_notifications match_notifications[]
   application_outcomes application_outcomes[]
 
-  // V2 LLM Matching Fields
+  // V7 LLM Matching Fields
   llmScore          Int?              @db.SmallInt
   llmDecision       String?           // MATCH, PARTIAL, NO_MATCH
   llmConfidence     String?           // HIGH, MEDIUM, LOW

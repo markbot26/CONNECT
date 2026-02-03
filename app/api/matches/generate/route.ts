@@ -242,13 +242,14 @@ export async function POST(request: NextRequest) {
 
     if (matchingAlgorithm === 'v7-llm') {
       console.log('[V7-LLM MATCHING] 실시간 매칭 시작:', organizationId);
-      const { runV2MatchingForOrganization } = await import('@/lib/matching/v7-llm/orchestrator');
-      await runV2MatchingForOrganization(organizationId);
+      const { runV7MatchingForOrganization } = await import('@/lib/matching/v7-llm/orchestrator');
+      await runV7MatchingForOrganization(organizationId);
 
-      const v2Matches = await db.funding_matches.findMany({
+      const v7Matches = await db.funding_matches.findMany({
         where: {
           organizationId,
           llmDecision: { in: ['MATCH', 'PARTIAL'] },
+          llmScore: { gte: minimumMatchScore },
           deletedAt: null,
           funding_programs: {
             status: 'ACTIVE',
@@ -259,7 +260,7 @@ export async function POST(request: NextRequest) {
         take: maxMatches,
       });
 
-      if (v2Matches.length === 0) {
+      if (v7Matches.length === 0) {
         await trackApiUsage(userId, '/api/matches/generate');
 
         return NextResponse.json(
@@ -282,7 +283,7 @@ export async function POST(request: NextRequest) {
 
       const response = {
         success: true,
-        matches: v2Matches.map((match) => ({
+        matches: v7Matches.map((match) => ({
           id: match.id,
           program: {
             id: match.funding_programs.id,
@@ -311,7 +312,7 @@ export async function POST(request: NextRequest) {
           matchesRemaining: rateLimitCheck.remaining - 1,
           resetDate: rateLimitCheck.resetDate.toISOString(),
         },
-        message: `${v2Matches.length}개의 적합한 지원 프로그램을 찾았습니다.`,
+        message: `${v7Matches.length}개의 적합한 지원 프로그램을 찾았습니다.`,
         isHistorical: false,
         algorithmVersion: 'v7-llm',
       };
@@ -320,12 +321,12 @@ export async function POST(request: NextRequest) {
       await trackApiUsage(userId, '/api/matches/generate');
 
       const hasGeneratedBefore = await hasFunnelEvent(userId, AuditAction.FIRST_MATCH_GENERATED);
-      if (!hasGeneratedBefore && v2Matches.length > 0) {
+      if (!hasGeneratedBefore && v7Matches.length > 0) {
         await logFunnelEvent(
           userId,
           AuditAction.FIRST_MATCH_GENERATED,
-          v2Matches[0].id,
-          `Generated ${v2Matches.length} matches, top score: ${v2Matches[0].llmScore ?? 0}`
+          v7Matches[0].id,
+          `Generated ${v7Matches.length} matches, top score: ${v7Matches[0].llmScore ?? 0}`
         );
       }
 
