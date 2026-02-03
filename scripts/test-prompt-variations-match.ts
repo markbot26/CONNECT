@@ -82,7 +82,7 @@ const promptVariations: PromptVariation[] = [
 총점: ${input.matchScore}/100점
 - 산업 분야: ${input.scoreBreakdown.industry}/30점
 - TRL 적합성: ${input.scoreBreakdown.trl}/20점
-- 인증 요건: ${input.scoreBreakdown.certifications}/20점
+- 조직 유형: ${input.scoreBreakdown.type}/15점
 </match_score>
 
 <instructions>
@@ -159,9 +159,9 @@ R&D 경력: ${input.rdExperience}년
 총점: ${input.matchScore}/100
 - 산업 매칭: ${input.scoreBreakdown.industry}/30점
 - TRL 적합성: ${input.scoreBreakdown.trl}/20점
-- 인증 요건: ${input.scoreBreakdown.certifications}/20점
-- 예산 적합성: ${input.scoreBreakdown.budget}/15점
-- R&D 경험: ${input.scoreBreakdown.experience}/15점
+- 조직 유형: ${input.scoreBreakdown.type}/15점
+- R&D 경험: ${input.scoreBreakdown.rd}/10점
+- 마감일 근접도: ${input.scoreBreakdown.deadline}/15점
 </scoring_analysis>
 
 <instructions>
@@ -205,9 +205,9 @@ R&D 경력: ${input.rdExperience}년
 - 총점: ${input.matchScore}/100 (상위 ${100 - input.matchScore}% 수준)
 - 산업 매칭: ${input.scoreBreakdown.industry}/30 (${((input.scoreBreakdown.industry / 30) * 100).toFixed(0)}%)
 - TRL 적합성: ${input.scoreBreakdown.trl}/20 (${((input.scoreBreakdown.trl / 20) * 100).toFixed(0)}%)
-- 인증: ${input.scoreBreakdown.certifications}/20 (${((input.scoreBreakdown.certifications / 20) * 100).toFixed(0)}%)
-- 예산: ${input.scoreBreakdown.budget}/15 (${((input.scoreBreakdown.budget / 15) * 100).toFixed(0)}%)
-- 경험: ${input.scoreBreakdown.experience}/15 (${((input.scoreBreakdown.experience / 15) * 100).toFixed(0)}%)
+- 조직 유형: ${input.scoreBreakdown.type}/15 (${((input.scoreBreakdown.type / 15) * 100).toFixed(0)}%)
+- R&D 경험: ${input.scoreBreakdown.rd}/10 (${((input.scoreBreakdown.rd / 10) * 100).toFixed(0)}%)
+- 마감일: ${input.scoreBreakdown.deadline}/15 (${((input.scoreBreakdown.deadline / 15) * 100).toFixed(0)}%)
 </quantitative_analysis>
 
 ${input.similarSuccessRate ? `
@@ -302,11 +302,12 @@ const testCases: MatchExplanationInput[] = [
     rdExperience: 3,
     matchScore: 85,
     scoreBreakdown: {
+      keyword: 20,
       industry: 28,
       trl: 18,
-      certifications: 20,
-      budget: 12,
-      experience: 7,
+      type: 12,
+      rd: 7,
+      deadline: 0,
     },
     missingRequirements: [],
     similarSuccessRate: 42,
@@ -331,11 +332,12 @@ const testCases: MatchExplanationInput[] = [
     rdExperience: 5,
     matchScore: 72,
     scoreBreakdown: {
+      keyword: 15,
       industry: 25,
       trl: 16,
-      certifications: 15,
-      budget: 10,
-      experience: 6,
+      type: 10,
+      rd: 6,
+      deadline: 0,
     },
     missingRequirements: ['TRL 7 미달'],
     similarSuccessRate: 35,
@@ -360,11 +362,12 @@ const testCases: MatchExplanationInput[] = [
     rdExperience: 2,
     matchScore: 45,
     scoreBreakdown: {
+      keyword: 0,
       industry: 10,
       trl: 5,
-      certifications: 0,
-      budget: 8,
-      experience: 2,
+      type: 8,
+      rd: 2,
+      deadline: 0,
     },
     missingRequirements: ['TRL 8 미달', '의료기기 허가 없음', 'AI 전문성 부족'],
     similarSuccessRate: 18,

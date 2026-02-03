@@ -44,14 +44,14 @@ export function useBulkDelete({ tableName, onSuccess }: UseBulkDeleteOptions) {
           title: '일괄 삭제 완료',
           description: data.message || `${ids.length}개 항목이 삭제되었습니다.`,
           action: undoTokens.length > 0
-            ? React.createElement(
+            ? (React.createElement(
                 ToastAction,
                 {
                   altText: '전체 실행 취소',
                   onClick: () => undoAll(undoTokens),
                 },
                 '전체 실행 취소'
-              )
+              ) as React.ReactElement)
             : undefined,
         });
 

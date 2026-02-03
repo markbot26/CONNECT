@@ -4,6 +4,7 @@
  * Extracts the official classification structure from the Hometax KSIC mapping file
  */
 
+// @ts-ignore - xlsx is an optional dependency for this standalone script
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';

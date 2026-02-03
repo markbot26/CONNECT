@@ -97,8 +97,8 @@ export async function createAuthenticatedHancomBrowser(): Promise<BrowserContext
   await page.getByRole('button', { name: '로그인' }).click();
   await page.waitForURL('**/oauth2/authorize**', { timeout: 30000 });
 
-  await page.getByRole('textbox', { name: '이메일' }).fill(HANCOM_EMAIL);
-  await page.getByRole('textbox', { name: '비밀번호' }).fill(HANCOM_PASSWORD);
+  await page.getByRole('textbox', { name: '이메일' }).fill(HANCOM_EMAIL!);
+  await page.getByRole('textbox', { name: '비밀번호' }).fill(HANCOM_PASSWORD!);
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await page.waitForURL('**/ko/home', { timeout: 30000 });
 
@@ -175,8 +175,8 @@ export async function convertHWPViaHancomTesseract(
       await page.getByRole('button', { name: '로그인' }).click();
       await page.waitForURL('**/oauth2/authorize**', { timeout: 30000 });
 
-      await page.getByRole('textbox', { name: '이메일' }).fill(HANCOM_EMAIL);
-      await page.getByRole('textbox', { name: '비밀번호' }).fill(HANCOM_PASSWORD);
+      await page.getByRole('textbox', { name: '이메일' }).fill(HANCOM_EMAIL!);
+      await page.getByRole('textbox', { name: '비밀번호' }).fill(HANCOM_PASSWORD!);
       await page.getByRole('button', { name: '로그인', exact: true }).click();
       await page.waitForURL('**/ko/home', { timeout: 30000 });
       console.log('[HANCOM-TESSERACT] ✓ Login successful');

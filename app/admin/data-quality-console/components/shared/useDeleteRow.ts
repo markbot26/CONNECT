@@ -43,14 +43,14 @@ export function useDeleteRow({ tableName, onSuccess }: UseDeleteRowOptions) {
           title: '삭제 완료',
           description: data.message || '항목이 삭제되었습니다.',
           action: data.undoToken
-            ? React.createElement(
+            ? (React.createElement(
                 ToastAction,
                 {
                   altText: '실행 취소',
                   onClick: () => undoDelete(data.undoToken),
                 },
                 '실행 취소'
-              )
+              ) as React.ReactElement)
             : undefined,
         });
 

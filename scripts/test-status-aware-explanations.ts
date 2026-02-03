@@ -29,11 +29,12 @@ const testCases: MatchExplanationInput[] = [
     rdExperience: 5,
     matchScore: 85,
     scoreBreakdown: {
+      keyword: 15,
       industry: 25,
       trl: 18,
-      certifications: 15,
-      budget: 15,
-      experience: 12,
+      type: 15,
+      rd: 12,
+      deadline: 0,
     },
   },
 
@@ -56,11 +57,12 @@ const testCases: MatchExplanationInput[] = [
     rdExperience: 3,
     matchScore: 78,
     scoreBreakdown: {
+      keyword: 18,
       industry: 28,
       trl: 16,
-      certifications: 0,
-      budget: 18,
-      experience: 16,
+      type: 0,
+      rd: 16,
+      deadline: 0,
     },
   },
 
@@ -83,11 +85,12 @@ const testCases: MatchExplanationInput[] = [
     rdExperience: 4,
     matchScore: 72,
     scoreBreakdown: {
+      keyword: 15,
       industry: 26,
       trl: 16,
-      certifications: 0,
-      budget: 15,
-      experience: 15,
+      type: 0,
+      rd: 15,
+      deadline: 0,
     },
   },
 ];
@@ -122,7 +125,7 @@ async function runTests() {
       console.log('✅ Generation Successful\n');
       console.log(`Cache Status: ${result.cached ? '🔥 CACHE HIT' : '🆕 CACHE MISS (New Generation)'}`);
       console.log(`Response Time: ${duration}ms`);
-      console.log(`AI Cost: ${result.cost?.total ? `$${result.cost.total.toFixed(4)}` : 'N/A (cached or logging failed)'}\n`);
+      console.log(`AI Cost: ${typeof result.cost === 'number' ? `$${result.cost.toFixed(4)}` : 'N/A (cached or logging failed)'}\n`);
 
       console.log('--- Generated Explanation ---\n');
       console.log(`Summary:\n${result.explanation.summary}\n`);
