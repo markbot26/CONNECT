@@ -34,6 +34,7 @@ jobs:
           SKIP_ENV_VALIDATION: true
       
       - name: Comment PR with preview info
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
@@ -79,6 +80,7 @@ jobs:
 
     steps:
       - name: Comment on PR
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
