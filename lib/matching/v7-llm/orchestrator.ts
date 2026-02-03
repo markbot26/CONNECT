@@ -98,7 +98,7 @@ export async function runV2MatchingForProgram(
     });
 
     if (!program) {
-      console.log('[V2 MATCHING] 프로그램을 찾을 수 없습니다:', programId);
+      console.log('[V7-LLM MATCHING] 프로그램을 찾을 수 없습니다:', programId);
       return;
     }
 
@@ -113,7 +113,7 @@ export async function runV2MatchingForProgram(
           const matchResult = await matchProgramToOrganization(program, org, config);
           await upsertV2Match(org.id, program.id, matchResult);
         } catch (error) {
-          console.error('[V2 MATCHING] 프로그램 매칭 실패:', {
+          console.error('[V7-LLM MATCHING] 프로그램 매칭 실패:', {
             programId: program.id,
             organizationId: org.id,
             error,
@@ -125,13 +125,13 @@ export async function runV2MatchingForProgram(
     const results = await pLimit(tasks, config.concurrency);
     const failures = results.filter((result) => result.status === 'rejected').length;
 
-    console.log('[V2 MATCHING] 프로그램 매칭 완료:', {
+    console.log('[V7-LLM MATCHING] 프로그램 매칭 완료:', {
       programId,
       total: results.length,
       failures,
     });
   } catch (error) {
-    console.error('[V2 MATCHING] 프로그램 매칭 오케스트레이션 실패:', {
+    console.error('[V7-LLM MATCHING] 프로그램 매칭 오케스트레이션 실패:', {
       programId,
       error,
     });
@@ -150,7 +150,7 @@ export async function runV2MatchingForOrganization(
     });
 
     if (!organization) {
-      console.log('[V2 MATCHING] 기관을 찾을 수 없습니다:', organizationId);
+      console.log('[V7-LLM MATCHING] 기관을 찾을 수 없습니다:', organizationId);
       return;
     }
 
@@ -171,7 +171,7 @@ export async function runV2MatchingForOrganization(
           const matchResult = await matchProgramToOrganization(program, organization, config);
           await upsertV2Match(organization.id, program.id, matchResult);
         } catch (error) {
-          console.error('[V2 MATCHING] 기관 매칭 실패:', {
+          console.error('[V7-LLM MATCHING] 기관 매칭 실패:', {
             programId: program.id,
             organizationId: organization.id,
             error,
@@ -183,13 +183,13 @@ export async function runV2MatchingForOrganization(
     const results = await pLimit(tasks, config.concurrency);
     const failures = results.filter((result) => result.status === 'rejected').length;
 
-    console.log('[V2 MATCHING] 기관 매칭 완료:', {
+    console.log('[V7-LLM MATCHING] 기관 매칭 완료:', {
       organizationId,
       total: results.length,
       failures,
     });
   } catch (error) {
-    console.error('[V2 MATCHING] 기관 매칭 오케스트레이션 실패:', {
+    console.error('[V7-LLM MATCHING] 기관 매칭 오케스트레이션 실패:', {
       organizationId,
       error,
     });

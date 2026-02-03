@@ -637,8 +637,8 @@ async function sendMatchNotifications(programId: string): Promise<void> {
 async function calculateMatchesForProgram(programId: string): Promise<void> {
   const matchingAlgorithm = process.env.MATCHING_ALGORITHM || 'v4.3';
 
-  if (matchingAlgorithm === 'v2-llm') {
-    const { runV2MatchingForProgram } = await import('@/lib/matching/v2/orchestrator');
+  if (matchingAlgorithm === 'v7-llm') {
+    const { runV2MatchingForProgram } = await import('@/lib/matching/v7-llm/orchestrator');
     await runV2MatchingForProgram(programId);
     return;
   }

@@ -240,9 +240,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (matchingAlgorithm === 'v2-llm') {
-      console.log('[V2 MATCHING] 실시간 매칭 시작:', organizationId);
-      const { runV2MatchingForOrganization } = await import('@/lib/matching/v2/orchestrator');
+    if (matchingAlgorithm === 'v7-llm') {
+      console.log('[V7-LLM MATCHING] 실시간 매칭 시작:', organizationId);
+      const { runV2MatchingForOrganization } = await import('@/lib/matching/v7-llm/orchestrator');
       await runV2MatchingForOrganization(organizationId);
 
       const v2Matches = await db.funding_matches.findMany({
@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
             },
             message: '귀하의 프로필과 일치하는 프로그램이 없습니다. 프로필을 업데이트하거나 나중에 다시 시도해주세요.',
             isHistorical: false,
-            algorithmVersion: 'v2-llm',
+            algorithmVersion: 'v7-llm',
           },
           { status: 200 }
         );
@@ -313,7 +313,7 @@ export async function POST(request: NextRequest) {
         },
         message: `${v2Matches.length}개의 적합한 지원 프로그램을 찾았습니다.`,
         isHistorical: false,
-        algorithmVersion: 'v2-llm',
+        algorithmVersion: 'v7-llm',
       };
 
       await setCache(matchCacheKey, response, CACHE_TTL.MATCH_RESULTS);

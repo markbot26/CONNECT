@@ -168,7 +168,7 @@ export async function matchProgramToOrganization(
 
       return parseLLMResult(content.text);
     } catch (error) {
-      console.error('[V2 MATCHING] LLM 매칭 실패:', {
+      console.error('[V7-LLM MATCHING] LLM 매칭 실패:', {
         attempt: attempt + 1,
         programId: program.id,
         organizationId: organization.id,
