@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get('organizationId');
     const forceRegenerate = searchParams.get('forceRegenerate') === 'true';
+    const matchingAlgorithm = process.env.MATCHING_ALGORITHM || 'v4.3';
 
     if (!organizationId) {
       return NextResponse.json(
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
     const matchCacheKey = getMatchCacheKey(organizationId);
     const cachedMatches = await getCache<any>(matchCacheKey);
 
-    if (cachedMatches) {
+    if (cachedMatches && cachedMatches.algorithmVersion === matchingAlgorithm) {
       // Cache hit! Return cached matches immediately
       // But we need to fetch current usage stats for consistent response shape
       const user = await db.user.findUnique({
@@ -141,6 +142,9 @@ export async function POST(request: NextRequest) {
         },
         { status: 200 }
       );
+    }
+    if (cachedMatches && cachedMatches.algorithmVersion !== matchingAlgorithm) {
+      await invalidateOrgMatches(organizationId);
     }
     // Cache miss — likely algorithm version upgrade or TTL expiry.
     // Clean stale DB matches so GET /api/matches won't serve outdated records.
@@ -216,6 +220,7 @@ export async function POST(request: NextRequest) {
     // Extract user's minimum match score preference (default: 60)
     const notificationSettings = user?.notificationSettings as NotificationSettings | null;
     const minimumMatchScore = notificationSettings?.minimumMatchScore ?? 60;
+    const maxMatches = MAX_MATCHES_BY_PLAN[subscriptionPlan] || 3;
 
     // 7. Check rate limit (critical for business model!)
     // Note: Admins bypass rate limits for testing/support purposes
@@ -233,6 +238,98 @@ export async function POST(request: NextRequest) {
         },
         { status: 429 }
       );
+    }
+
+    if (matchingAlgorithm === 'v2-llm') {
+      console.log('[V2 MATCHING] 실시간 매칭 시작:', organizationId);
+      const { runV2MatchingForOrganization } = await import('@/lib/matching/v2/orchestrator');
+      await runV2MatchingForOrganization(organizationId);
+
+      const v2Matches = await db.funding_matches.findMany({
+        where: {
+          organizationId,
+          llmDecision: { in: ['MATCH', 'PARTIAL'] },
+          deletedAt: null,
+          funding_programs: {
+            status: 'ACTIVE',
+          },
+        },
+        include: { funding_programs: true },
+        orderBy: { llmScore: 'desc' },
+        take: maxMatches,
+      });
+
+      if (v2Matches.length === 0) {
+        await trackApiUsage(userId, '/api/matches/generate');
+
+        return NextResponse.json(
+          {
+            success: true,
+            matches: [],
+            usage: {
+              plan: subscriptionPlan,
+              matchesUsed: 2 - rateLimitCheck.remaining + 1,
+              matchesRemaining: rateLimitCheck.remaining - 1,
+              resetDate: rateLimitCheck.resetDate.toISOString(),
+            },
+            message: '귀하의 프로필과 일치하는 프로그램이 없습니다. 프로필을 업데이트하거나 나중에 다시 시도해주세요.',
+            isHistorical: false,
+            algorithmVersion: 'v2-llm',
+          },
+          { status: 200 }
+        );
+      }
+
+      const response = {
+        success: true,
+        matches: v2Matches.map((match) => ({
+          id: match.id,
+          program: {
+            id: match.funding_programs.id,
+            title: match.funding_programs.title,
+            description: match.funding_programs.description,
+            agencyId: match.funding_programs.agencyId,
+            category: match.funding_programs.category,
+            budgetAmount: match.funding_programs.budgetAmount?.toString(),
+            deadline: match.funding_programs.deadline?.toISOString(),
+            announcementUrl: match.funding_programs.announcementUrl,
+          },
+          score: match.llmScore ?? 0,
+          personalizedScore: null,
+          explanation: {
+            summary: match.llmSummary,
+            decision: match.llmDecision,
+            confidence: match.llmConfidence,
+            reasons: match.llmReasons,
+            eligibility: match.llmEligibility,
+          },
+          createdAt: match.createdAt.toISOString(),
+        })),
+        usage: {
+          plan: subscriptionPlan,
+          matchesUsed: 2 - rateLimitCheck.remaining + 1,
+          matchesRemaining: rateLimitCheck.remaining - 1,
+          resetDate: rateLimitCheck.resetDate.toISOString(),
+        },
+        message: `${v2Matches.length}개의 적합한 지원 프로그램을 찾았습니다.`,
+        isHistorical: false,
+        algorithmVersion: 'v2-llm',
+      };
+
+      await setCache(matchCacheKey, response, CACHE_TTL.MATCH_RESULTS);
+      await trackApiUsage(userId, '/api/matches/generate');
+
+      const hasGeneratedBefore = await hasFunnelEvent(userId, AuditAction.FIRST_MATCH_GENERATED);
+      if (!hasGeneratedBefore && v2Matches.length > 0) {
+        await logFunnelEvent(
+          userId,
+          AuditAction.FIRST_MATCH_GENERATED,
+          v2Matches[0].id,
+          `Generated ${v2Matches.length} matches, top score: ${v2Matches[0].llmScore ?? 0}`
+        );
+      }
+
+      return NextResponse.json(response, { status: 200 });
     }
 
     // 8. Fetch active funding programs (with cache)
@@ -318,7 +415,6 @@ export async function POST(request: NextRequest) {
     // 9. Generate matches using algorithm
     // Plan-based limit: Free(3), Pro(10), Team(15)
     // Score filter: User's minimumMatchScore from notification settings
-    const maxMatches = MAX_MATCHES_BY_PLAN[subscriptionPlan] || 3;
     console.log('[MATCH GENERATION] Using organization profile for org:', organizationId);
     console.log('[MATCH GENERATION] Profile data:', {
       name: organization.name,
@@ -333,7 +429,6 @@ export async function POST(request: NextRequest) {
       maxMatches,
       minimumMatchScore,
     });
-    const matchingAlgorithm = process.env.MATCHING_ALGORITHM || 'v4.3';
     const matchResults: Array<MatchScore | V6MatchScore> = matchingAlgorithm === 'v6.0-funnel'
       ? generateMatchesV6(organization, programs, maxMatches, { minimumScore: minimumMatchScore })
       : generateMatches(organization, programs, maxMatches, { minimumScore: minimumMatchScore });

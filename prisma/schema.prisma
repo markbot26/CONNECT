@@ -271,6 +271,16 @@ model funding_matches {
   match_notifications match_notifications[]
   application_outcomes application_outcomes[]
 
+  // V2 LLM Matching Fields
+  llmScore          Int?              @db.SmallInt
+  llmDecision       String?           // MATCH, PARTIAL, NO_MATCH
+  llmConfidence     String?           // HIGH, MEDIUM, LOW
+  llmSummary        String?           // 한국어 요약 1~2문장
+  llmReasons        Json?             // { strengths, weaknesses, domain_fit, tech_fit }
+  llmEligibility    Json?             // { eligible, issues }
+  llmModel          String?           // 사용된 모델명
+  llmMatchedAt      DateTime?         // LLM 매칭 실행 시간
+
   @@unique([organizationId, programId])
   @@index([createdAt])
   @@index([deletedAt])

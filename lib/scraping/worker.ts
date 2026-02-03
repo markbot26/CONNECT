@@ -635,6 +635,14 @@ async function sendMatchNotifications(programId: string): Promise<void> {
  * Calculate matches for a newly scraped program
  */
 async function calculateMatchesForProgram(programId: string): Promise<void> {
+  const matchingAlgorithm = process.env.MATCHING_ALGORITHM || 'v4.3';
+
+  if (matchingAlgorithm === 'v2-llm') {
+    const { runV2MatchingForProgram } = await import('@/lib/matching/v2/orchestrator');
+    await runV2MatchingForProgram(programId);
+    return;
+  }
+
   // Get all active organizations
   const organizations = await db.organizations.findMany({
     where: { status: 'ACTIVE' },
