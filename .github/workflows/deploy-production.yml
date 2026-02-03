@@ -527,8 +527,8 @@ jobs:
           ENABLE_ERROR_TRACKING=false
           MAINTENANCE_MODE=false
 
-          # Matching Algorithm (v4.3 = legacy, v6.0-funnel = three-stage funnel)
-          MATCHING_ALGORITHM=v6.0-funnel
+          # Matching Algorithm (v4.3 = legacy, v6.0-funnel = three-stage funnel, v7-llm = LLM-based)
+          MATCHING_ALGORITHM=${{ vars.MATCHING_ALGORITHM }}
 
           # ============================================
           # Hancom Docs (HWP to PDF Converter)
