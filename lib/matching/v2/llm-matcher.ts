@@ -146,18 +146,20 @@ export async function matchProgramToOrganization(
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await client.messages.create({
-        model: LLM_MODEL,
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: userPrompt,
-          },
-        ],
-        signal: controller.signal,
-      });
+      const response = await client.messages.create(
+        {
+          model: LLM_MODEL,
+          max_tokens: 1024,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: 'user',
+              content: userPrompt,
+            },
+          ],
+        },
+        { signal: controller.signal },
+      );
 
       const content = response.content[0];
       if (!content || content.type !== 'text') {
